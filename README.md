@@ -1,4 +1,4 @@
-# ai-vibecoding-2026
+### ai-vibecoding-2026
 
 바이브코딩 리포지토리
 
@@ -35,29 +35,30 @@ AI에게 코딩을 시키자, 제대로!
 #### Codex
 
 - 설치 후 확장 아이콘 아래, Codex 아이콘 생성
-
-
 - 로그인 - 웹 브라우저 연결
 - 설정화면 설정 필요
-
-
 - 추가파일 Codex-*-SandBox-.exe 설치
-
-
 - 최종 화면
 - 채팅 창 명령 / 여러 LLM에 전달 할 명령어 리스트
 
-
 #### 바이브코딩 맛보기
 
-
 - 제로샷 프롬프트 요청
-
-
 - 결과 메시지 화면
 - 소스
-
 
 #### CLI Codex
 
 - 파워쉘, 콘솔 창에서 명렁어로 수행하는 Codex
+
+
+### 주식 자동매매 개발환경
+
+토스증권 OpenAPI
+
+- https://corp.tossinvest.com/ko/open-api
+- 토스앱 모바일 설치 가입
+- 토스증권 사용 설정
+- 토스증권 PC 웹사이트 동작
+- 사용중인 아이피를 토스증권 PC 등록
+- OpenAPI Key 발급 - ClientID, Client Secret 문자열 보관
