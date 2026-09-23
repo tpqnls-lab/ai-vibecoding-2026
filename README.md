@@ -83,9 +83,7 @@ AI에게 코딩을 시키자, 제대로!
 - 토스앱 모바일로 로그인 인증
 - 오른쪽 하단 기어모양 아이콘(설정)
 
-
 ![](https://github.com/hugoMGSung/ai-vibecoding-2026/raw/main/assets/20260921_170830_image.png)
-
 
 Client Id, Client Secret, IP 추가
 cmd > ipconfig로 보인 아이피 확인 후 추가
@@ -97,7 +95,46 @@ cmd > ipconfig로 보인 아이피 확인 후 추가
   -`__pycache__` - 미리 만들어놓은 파이썬 실행 파일(캐시)
   - tests - 소스코드 테스트 실행을 위한 폴더
 - .env.example - 환결설정 예제파일 .example을 지우거나 복사 후 사용
-      .env는 GitHub에 업로드 방지위해 .gitignore에 제외파일로 등록
+  .env는 GitHub에 업로드 방지위해 .gitignore에 제외파일로 등록
 - requirements.txt - 파이썬 개발환경 패키지 설치리스트 파일
-    - `pip install -r requirements.txt`로 전부 설치
-    
+  - `pip install -r requirements.txt`로 전부 설치
+
+
+#### HTTP 403 문제
+
+- ㅇ
+
+
+- 공인IP 확인 [ [MyIP](https://myip.co.kr/util/what-is-myip/)MyI](https://myip.co.kr/util/what-is-myip/)
+
+
+- 토스 API
+
+
+- 실행화면
+
+![](assets/20260923_114112_image.png)
+
+
+#### favicon.ico 작업
+
+- https://www.flaticon.com/  원하는 이미지를 png로 다운
+- https://convertio.co/kr/   다운받은 이미지를 ico로 변환 후 다운로드
+- favicon.ico로 이름 변경
+- static 폴더에 복사
+- index.html에 아래코드 추가
+
+```html
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+```
+
+
+
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico"/>
+
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico"/>
+
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico"/>
+
+
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico"/>

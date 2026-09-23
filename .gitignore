@@ -147,7 +147,7 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments  ! ! GitHub 파일이 안 올라가게 막음 ! !
 .env
 .envrc
 .venv

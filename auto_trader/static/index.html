@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>토스 주식 자동매매</title>
+   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <h1>토스 주식 자동매매</h1>
+        <div class="muted">2단계 · 실시간 시세 & 가상 포트폴리오</div>
+      </div><span id="connection" class="badge">연결 중</span>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">가상 현금</div>
+        <div id="cash" class="value">₩0</div>
+      </div>
+      <div class="card">
+        <div class="label">보유 종목 수</div>
+        <div id="positions" class="value">0</div>
+      </div>
+      <div class="card">
+        <div class="label">실현 손익</div>
+        <div id="pnl" class="value">₩0</div>
+      </div>
+    </div>
+    <section class="section card">
+      <h2>실시간 시세 조회</h2>
+      <div class="muted">토스증권 API에서 자동으로 가져옵니다. 인증 토큰은 서버에만 보관됩니다.</div>
+      <form id="lookup-form"><input id="symbols" placeholder="005930, 000660" value="005930,000660"
+          required><button>조회</button></form>
+      <div id="error" class="error">종목코드를 입력하면 서버가 토스증권 API로 조회합니다.</div>
+    </section>
+    <section class="section card">
+      <h2>실시간 시세</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>종목</th>
+            <th>가격</th>
+            <th>통화</th>
+          </tr>
+        </thead>
+        <tbody id="prices">
+          <tr>
+            <td colspan="3" class="empty">등록된 시세가 없습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+
+</html>

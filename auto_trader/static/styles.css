@@ -1,0 +1,155 @@
+:root {
+    font-family: Inter, system-ui, sans-serif;
+    color: #e7edf5;
+    background: #0b1220
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    background: radial-gradient(circle at top right, #17284a, #0b1220 45%);
+    min-height: 100vh
+}
+
+main {
+    max-width: 1120px;
+    margin: auto;
+    padding: 34px 20px
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px
+}
+
+h1 {
+    margin: 0;
+    font-size: 28px
+}
+
+.muted {
+    color: #93a4bd
+}
+
+.badge {
+    background: #173b31;
+    color: #62e6aa;
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-size: 13px
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px
+}
+
+.card {
+    background: #121d31;
+    border: 1px solid #21314b;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 10px 30px #0002
+}
+
+.label {
+    color: #93a4bd;
+    font-size: 13px;
+    margin-bottom: 10px
+}
+
+.value {
+    font-size: 25px;
+    font-weight: 700
+}
+
+.section {
+    margin-top: 24px
+}
+
+.section h2 {
+    font-size: 18px
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse
+}
+
+th,
+td {
+    text-align: left;
+    padding: 13px 8px;
+    border-bottom: 1px solid #24344c
+}
+
+th {
+    color: #93a4bd;
+    font-size: 12px
+}
+
+form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px
+}
+
+input,
+button {
+    background: #0d1728;
+    color: #e7edf5;
+    border: 1px solid #30435f;
+    border-radius: 8px;
+    padding: 10px
+}
+
+input {
+    flex: 1;
+    min-width: 220px
+}
+
+button {
+    background: #3778f6;
+    border: 0;
+    cursor: pointer;
+    font-weight: 600
+}
+
+button:hover {
+    background: #2865d8
+}
+
+button:disabled {
+    opacity: .6;
+    cursor: wait
+}
+
+.empty {
+    text-align: center;
+    color: #93a4bd;
+    padding: 24px
+}
+
+.error {
+    color: #ffb4b4;
+    margin-top: 10px
+}
+
+@media(max-width:700px) {
+    .grid {
+        grid-template-columns: 1fr
+    }
+
+    .top {
+        align-items: flex-start;
+        gap: 12px;
+        flex-direction: column
+    }
+}
