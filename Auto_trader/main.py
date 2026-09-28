@@ -18,6 +18,7 @@ app = FastAPI(title="Toss Auto Trader", version="0.1.0")
 broker = PaperBroker()
 prices: dict[str, Price] = {}
 mode: Literal["PAPER", "DRY_RUN"] = "PAPER"
+AUTO_STRATEGY = {"min_score": 85, "take_profit": 0.15, "stop_loss": -0.05, "interval_seconds": 180}
 FRONTEND = Path(__file__).parent / "static" / "index.html"
 app.mount("/static", StaticFiles(directory=FRONTEND.parent), name="static")
 TOSS_API = "https://openapi.tossinvest.com"
@@ -122,6 +123,31 @@ def get_prices() -> list[Price]:
     return list(prices.values())
 
 
+@app.get("/api/v1/market/candles")
+async def get_candles(symbol: str, interval: str = "1d") -> dict:
+    """Proxy Toss candle data without exposing the OAuth token to the browser."""
+    if interval not in {"1m", "1d"}:
+        raise HTTPException(400, "Toss API는 1m 또는 1d 봉을 지원합니다.")
+    token = await toss_token()
+    candles: list[dict] = []
+    before: str | None = None
+    async with httpx.AsyncClient(timeout=10) as client:
+        for _ in range(5):
+            params = {"symbol": symbol.upper(), "interval": interval, "count": 200}
+            if before:
+                params["before"] = before
+            response = await client.get(f"{TOSS_API}/api/v1/candles", params=params, headers={"Authorization": f"Bearer {token}"})
+            if response.is_error:
+                raise HTTPException(response.status_code, "실제 봉 데이터를 가져오지 못했습니다.")
+            result = response.json().get("result", {})
+            page = result.get("candles", [])
+            candles.extend(page)
+            before = result.get("nextBefore")
+            if not before or not page:
+                break
+    return {"result": {"candles": candles, "nextBefore": before}}
+
+
 @app.put("/api/v1/market/prices/{symbol}", response_model=Price)
 def set_price(symbol: str, price: Decimal, currency: str = "KRW") -> Price:
     value = Price(symbol=symbol.upper(), price=price, currency=currency)
@@ -159,7 +185,10 @@ def get_orders() -> list[Order]:
 @app.post("/api/v1/orders", response_model=Order)
 def create_order(request: OrderRequest) -> Order:
     if mode == "PAPER" and request.symbol not in prices:
-        raise HTTPException(400, "paper mode requires a known price")
+        # The recommendation screen may have a quote before the background
+        # market sync has completed. In paper mode it is safe to register the
+        # submitted quote as the paper execution price.
+        prices[request.symbol] = Price(symbol=request.symbol, price=request.price, currency="KRW")
     return broker.place(request, mode)
 
 
@@ -168,3 +197,24 @@ def set_mode(new_mode: Literal["PAPER", "DRY_RUN"]) -> dict[str, str]:
     global mode
     mode = new_mode
     return {"mode": mode}
+
+
+@app.get("/api/v1/auto-trading/config")
+def auto_trading_config() -> dict:
+    return {"mode": mode, **AUTO_STRATEGY}
+
+
+@app.post("/api/v1/auto-trading/evaluate")
+def evaluate_auto_trade(symbol: str, price: Decimal, score: int, budget_percent: Decimal = Decimal("40")) -> dict:
+    """Evaluate one paper-trading decision using the configured strategy."""
+    if mode != "PAPER":
+        raise HTTPException(400, "자동매매는 현재 PAPER 모드에서만 실행됩니다.")
+    if score < AUTO_STRATEGY["min_score"]:
+        return {"action": "HOLD", "reason": "추천 점수가 기준 미만입니다.", "quantity": 0}
+    cash = broker.portfolio().cash
+    budget = cash * max(Decimal("0"), min(Decimal("100"), budget_percent)) / Decimal("100")
+    quantity = int(budget // price)
+    if quantity < 1:
+        return {"action": "HOLD", "reason": "설정한 예산으로 1주를 매수할 수 없습니다.", "quantity": 0}
+    order = broker.place(OrderRequest(symbol=symbol, side="BUY", quantity=Decimal(quantity), price=price), mode)
+    return {"action": "BUY", "quantity": quantity, "order": order.model_dump(mode="json"), **AUTO_STRATEGY}
