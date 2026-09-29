@@ -8,6 +8,7 @@ class Price(BaseModel):
     symbol: str
     price: Decimal = Field(gt=0)
     currency: str = "KRW"
+    change_percent: Decimal = Decimal("0")
 
 
 class OrderRequest(BaseModel):
@@ -26,9 +27,17 @@ class Order(BaseModel):
     price: Decimal
     status: Literal["FILLED", "REJECTED"]
     mode: Literal["PAPER", "DRY_RUN"]
+    created_at: str = ""
+    symbol_name: str = ""
 
 
 class Portfolio(BaseModel):
     cash: Decimal
     positions: dict[str, Decimal]
     realized_pnl: Decimal
+    holdings: list[dict] = []
+    total_invested: Decimal = Decimal("0")
+    total_market_value: Decimal = Decimal("0")
+    total_pnl: Decimal = Decimal("0")
+    total_pnl_percent: Decimal = Decimal("0")
+    total_assets: Decimal = Decimal("0")

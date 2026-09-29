@@ -15,12 +15,14 @@
 
   async function run() {
     if (!running) return;
+    await fetch('/api/v1/auto-trading/manage', { method: 'POST' });
     const percent = Math.max(1, Math.min(100, Number(document.querySelector('#budget-percent')?.value) || 40));
     const candidates = window.stocks || [];
     const message = document.querySelector('#order-message');
     let filled = 0;
-    for (const stock of candidates) {
-      const response = await fetch(`/api/v1/auto-trading/evaluate?symbol=${stock.symbol}&price=${stock.price}&score=85&budget_percent=${percent / Math.max(1, candidates.length)}`, { method: 'POST' });
+    const selected = candidates.slice().sort((a, b) => Number(b.score || 0) - Number(a.score || 0)).slice(0, 2);
+    for (const stock of selected) {
+      const response = await fetch(`/api/v1/auto-trading/evaluate?symbol=${stock.symbol}&price=${stock.price}&score=${stock.score || 85}&budget_percent=${percent / Math.max(1, selected.length)}`, { method: 'POST' });
       if (response.ok && (await response.json()).action === 'BUY') filled += 1;
     }
     if (message) message.textContent = `${filled}개 추천 종목 자동매매 완료`;
