@@ -138,3 +138,5 @@ cmd > ipconfig로 보인 아이피 확인 후 추가
 
 
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico"/>
+
+#### uvicorn auto_trader.main:app --host 127.0.0.1 --port 8000 --reload

@@ -37,7 +37,11 @@ class PaperBroker:
                 status = "FILLED" if mode == "DRY_RUN" or position >= request.quantity else "REJECTED"
                 if status == "FILLED" and mode == "PAPER":
                     self._cash += amount
-                    self._positions[request.symbol] = position - request.quantity
+                    remaining = position - request.quantity
+                    if remaining:
+                        self._positions[request.symbol] = remaining
+                    else:
+                        self._positions.pop(request.symbol, None)
             order = Order(id=self._next_id, client_order_id=f"paper-{self._next_id}", **request.model_dump(), status=status, mode=mode)
             self._next_id += 1
             self._orders.append(order)

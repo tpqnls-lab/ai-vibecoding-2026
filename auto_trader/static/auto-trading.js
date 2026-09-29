@@ -1,1 +1,50 @@
-(function(){let timer=null,running=false;function applyBudget(){const p=document.querySelector('#budget-percent'),a=document.querySelector('#budget-amount'),c=document.querySelector('#cash');if(!p||!a)return;let v=Number(p.value);if(!Number.isFinite(v))v=40;v=Math.max(1,Math.min(100,v));p.value=v;const cash=Number((c?.textContent||'').replace(/[^0-9]/g,''))||10000000;a.textContent=new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',maximumFractionDigits:0}).format(cash*v/100)}async function run(){if(!running)return;const s=document.querySelector('#detail-symbol')?.textContent.trim(),p=Number((document.querySelector('#detail-price')?.textContent||'').replace(/[^0-9]/g,'')),pct=Number(document.querySelector('#budget-percent')?.value||40);if(s&&p){const r=await fetch(`/api/v1/auto-trading/evaluate?symbol=${s}&price=${p}&score=85&budget_percent=${pct}`,{method:'POST'});const d=await r.json();const m=document.querySelector('#order-message');if(m)m.textContent=d.action==='BUY'?`AI 자동매수 ${d.quantity}주 체결`:(d.reason||'대기 중')}timer=setTimeout(run,180000)}function start(){if(running)return;running=true;document.querySelector('#auto-btn').textContent='자동매매 중지';run()}function stop(){running=false;clearTimeout(timer);document.querySelector('#auto-btn').textContent='자동매매 시작'}document.addEventListener('DOMContentLoaded',()=>{const b=document.querySelector('#budget-apply'),p=document.querySelector('#budget-percent');if(b)b.onclick=applyBudget;if(p)p.onkeydown=e=>{if(e.key==='Enter')applyBudget()};applyBudget();const a=document.querySelector('#auto-btn');if(a)a.addEventListener('click',e=>{e.stopImmediatePropagation();running?stop():start()},true)})})();
+(function () {
+  let timer = null;
+  let running = false;
+
+  function applyBudget() {
+    const percent = document.querySelector('#budget-percent');
+    const amount = document.querySelector('#budget-amount');
+    const cash = document.querySelector('#cash');
+    if (!percent || !amount) return;
+    const value = Math.max(1, Math.min(100, Number(percent.value) || 40));
+    percent.value = value;
+    const balance = Number((cash?.textContent || '').replace(/[^0-9]/g, '')) || 10000000;
+    amount.textContent = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(balance * value / 100);
+  }
+
+  async function run() {
+    if (!running) return;
+    const percent = Math.max(1, Math.min(100, Number(document.querySelector('#budget-percent')?.value) || 40));
+    const candidates = window.stocks || [];
+    const message = document.querySelector('#order-message');
+    let filled = 0;
+    for (const stock of candidates) {
+      const response = await fetch(`/api/v1/auto-trading/evaluate?symbol=${stock.symbol}&price=${stock.price}&score=85&budget_percent=${percent / Math.max(1, candidates.length)}`, { method: 'POST' });
+      if (response.ok && (await response.json()).action === 'BUY') filled += 1;
+    }
+    if (message) message.textContent = `${filled}개 추천 종목 자동매매 완료`;
+    if (typeof window.refresh === 'function') await window.refresh();
+    timer = setTimeout(run, 180000);
+  }
+
+  function stop() {
+    running = false;
+    clearTimeout(timer);
+    document.querySelector('#auto-btn').textContent = '자동매매 시작';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const budgetButton = document.querySelector('#budget-apply');
+    const budgetInput = document.querySelector('#budget-percent');
+    if (budgetButton) budgetButton.onclick = applyBudget;
+    if (budgetInput) budgetInput.onkeydown = (event) => { if (event.key === 'Enter') applyBudget(); };
+    applyBudget();
+    const button = document.querySelector('#auto-btn');
+    if (button) button.addEventListener('click', (event) => {
+      event.stopImmediatePropagation();
+      if (running) stop();
+      else { running = true; button.textContent = '자동매매 중지'; run(); }
+    }, true);
+  });
+})();
