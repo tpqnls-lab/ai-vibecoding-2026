@@ -19,12 +19,13 @@ app = FastAPI(title="Toss Auto Trader", version="0.1.0")
 broker = PaperBroker(initial_cash=Decimal(os.getenv("PAPER_INITIAL_CASH", "10000000")), state_file=Path(__file__).parent / "paper_state.json")
 prices: dict[str, Price] = {}
 mode: Literal["PAPER", "DRY_RUN"] = "PAPER"
-AUTO_STRATEGY = {"min_score": 85, "take_profit": 0.15, "stop_loss": -0.05, "interval_seconds": 180}
+AUTO_STRATEGY = {"min_score": 70, "take_profit": 0.15, "stop_loss": -0.05, "interval_seconds": 180}
 AUTO_STRATEGY["stop_loss"] = Decimal("-0.04")
 AUTO_STRATEGY["stop_loss_max"] = Decimal("-0.07")
 AUTO_STRATEGY["take_profit"] = Decimal("0.08")
 AUTO_STRATEGY["take_profit_max"] = Decimal("0.30")
-AUTO_STRATEGY["max_positions"] = 5
+AUTO_STRATEGY["max_positions"] = 9999
+AUTO_STRATEGY["min_order_amount"] = Decimal("200000")
 FRONTEND = Path(__file__).parent / "static" / "index.html"
 app.mount("/static", StaticFiles(directory=FRONTEND.parent), name="static")
 TOSS_API = "https://openapi.tossinvest.com"
@@ -159,6 +160,8 @@ async def recommendations(exclude: str = "") -> list[dict]:
                     if result: break
         rows = result.get("items", result.get("rankings", result.get("data", []))) if isinstance(result, dict) else result
         excluded = {x.strip() for x in exclude.split(",") if x.strip()}
+        excluded.update(broker.portfolio().positions.keys())
+        excluded.update(symbol for symbol, until in _auto_cooldowns.items() if until > time.time())
         ranked = []
         for item in rows:
             symbol = str(item.get("symbol", item.get("code", "")))
@@ -172,8 +175,14 @@ async def recommendations(exclude: str = "") -> list[dict]:
             value = float(item.get("tradingValue", item.get("tradingAmount", 0)) or 0)
             volume = float(item.get("volume", item.get("tradingVolume", 0)) or 0)
             # Avoid chasing abnormal one-day spikes.
-            if change > 20 or change < -10: continue
-            ranked.append({"symbol": symbol, "name": item.get("name", item.get("stockName", symbol)), "price": float(price), "change": change, "previous_price": float(base_price) if base_price else None, "score": round(change * 5 + (value > 0) * 2 + (volume > 0), 2)})
+            if change > 20 or change < -10 or value < 100000000 or volume < 100000: continue
+            score = 0
+            score += 25 if value >= 1000000000 else 15
+            score += 25 if volume >= 1000000 else 15
+            score += 25 if 0 < change <= 8 else 15 if change <= 15 else 0
+            score += 25 if abs(change) <= 8 else 15
+            if score < 70: continue
+            ranked.append({"symbol": symbol, "name": item.get("name", item.get("stockName", symbol)), "price": float(price), "change": change, "previous_price": float(base_price) if base_price else None, "score": score})
         ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)[:5]
         if ranked:
             async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
@@ -278,7 +287,12 @@ def create_order(request: OrderRequest) -> Order:
         # market sync has completed. In paper mode it is safe to register the
         # submitted quote as the paper execution price.
         prices[request.symbol] = Price(symbol=request.symbol, price=request.price, currency="KRW")
-    return broker.place(request, mode)
+    order = broker.place(request, mode)
+    if order.status == "FILLED" and request.side == "BUY":
+        _auto_peaks[request.symbol.upper()] = request.price
+    elif order.status == "FILLED" and request.side == "SELL" and request.quantity >= broker.portfolio().positions.get(request.symbol, Decimal("0")):
+        _auto_peaks.pop(request.symbol.upper(), None)
+    return order
 
 
 @app.post("/api/v1/mode/{new_mode}")
@@ -303,8 +317,6 @@ async def evaluate_auto_trade(symbol: str, price: Decimal, score: int, budget_pe
     portfolio = broker.portfolio()
     if symbol.upper() in portfolio.positions:
         return {"action": "HOLD", "reason": "이미 보유 중인 종목입니다.", "quantity": 0}
-    if len(portfolio.positions) >= AUTO_STRATEGY["max_positions"]:
-        return {"action": "HOLD", "reason": "최대 보유 종목 수에 도달했습니다.", "quantity": 0}
     try:
         token = await toss_token()
         async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
@@ -314,9 +326,30 @@ async def evaluate_auto_trade(symbol: str, price: Decimal, score: int, budget_pe
             return {"action": "HOLD", "reason": "차트 데이터가 부족해 매수하지 않았습니다.", "quantity": 0}
         closes = [Decimal(x["closePrice"]) for x in reversed(candles)]
         volumes = [Decimal(x.get("volume", "0")) for x in reversed(candles)]
-        short_avg = sum(closes[-5:]) / Decimal("5")
-        avg_volume = sum(volumes[:-5]) / Decimal(str(max(1, len(volumes) - 5)))
-        if closes[-1] < short_avg or volumes[-1] < avg_volume:
+        signal_score = 0
+        avg_close = sum(closes[-5:]) / Decimal("5")
+        if price >= avg_close:
+            signal_score += 20
+        elif price >= avg_close * Decimal("0.997"):
+            signal_score += 10
+        avg_volume = sum(volumes[-5:-1]) / Decimal("4")
+        volume_ratio = volumes[-1] / avg_volume if avg_volume else Decimal("0")
+        if volume_ratio >= Decimal("1.5"):
+            signal_score += 25
+        elif volume_ratio >= Decimal("1.0"):
+            signal_score += 20
+        elif volume_ratio >= Decimal("0.5"):
+            signal_score += 10
+        bullish_count = sum(1 for x in candles[-3:] if Decimal(x["closePrice"]) > Decimal(x["openPrice"]))
+        if bullish_count >= 2:
+            signal_score += 15
+        if price > Decimal(candles[-2]["highPrice"]):
+            signal_score += 15
+        lows = [Decimal(x["lowPrice"]) for x in candles[-5:]]
+        if all(lows[i] >= lows[i-1] for i in range(1, len(lows))):
+            signal_score += 10
+        if signal_score < 30:
+            return {"action": "HOLD", "reason": f"매수 신호 점수 {signal_score}점(최소 30점)", "quantity": 0}
             return {"action": "HOLD", "reason": "상승 추세 또는 체결량 조건을 충족하지 못했습니다.", "quantity": 0}
     except (httpx.HTTPError, KeyError, ValueError, TypeError, RuntimeError):
         return {"action": "HOLD", "reason": "실시간 차트·체결량을 확인하지 못해 매수하지 않았습니다.", "quantity": 0}
@@ -326,9 +359,13 @@ async def evaluate_auto_trade(symbol: str, price: Decimal, score: int, budget_pe
     cash = broker.portfolio().cash
     budget = cash * max(Decimal("0"), min(Decimal("100"), budget_percent)) / Decimal("100")
     quantity = int(budget // price)
+    if quantity * price < AUTO_STRATEGY["min_order_amount"]:
+        return {"action": "HOLD", "reason": "최소 자동매수 금액 20만원 미만입니다.", "quantity": 0}
     if quantity < 1:
         return {"action": "HOLD", "reason": "설정한 예산으로 1주를 매수할 수 없습니다.", "quantity": 0}
     order = broker.place(OrderRequest(symbol=symbol, side="BUY", quantity=Decimal(quantity), price=price), mode)
+    if order.status == "FILLED":
+        _auto_peaks[symbol.upper()] = price
     return {"action": "BUY", "quantity": quantity, "order": order.model_dump(mode="json"), **AUTO_STRATEGY}
 
 @app.post("/api/v1/auto-trading/manage")
